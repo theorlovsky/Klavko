@@ -66,9 +66,8 @@ cask "klavko" do
   app "Klavko.app"
 
   # Signed with a personal certificate, not notarized: Gatekeeper would refuse the quarantined copy.
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/Klavko.app"]
+  postflight_steps do
+    run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/Klavko.app"]
   end
 
   uninstall quit: "app.klavko.Klavko"
