@@ -100,6 +100,10 @@ git -C "$TAP_DIR" add Casks/klavko.rb
 git -C "$TAP_DIR" commit -m "klavko $CASK_VERSION"
 git -C "$TAP_DIR" push
 
+# The app is in the release and installed through brew from now on: don't leave a second, signed
+# Klavko.app in the repo (Spotlight/Launch Services could start it instead of /Applications/Klavko.app).
+rm -rf build/Klavko.app "$ZIP"
+
 echo
 echo "Released $TAG. Install or update with:"
 echo "  brew update && brew install --cask $TAP/klavko   # first time"
