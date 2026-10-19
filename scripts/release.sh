@@ -50,10 +50,6 @@ gh auth status >/dev/null 2>&1 || fail "gh is not logged in (gh auth login)"
 TAP_DIR="$(brew --repo "$TAP")"
 [ -d "$TAP_DIR/.git" ] || fail "tap $TAP is not checked out (brew tap $TAP)"
 
-gh release create "$TAG" "$ZIP" --repo "$FORK_REPO" --target "$(git rev-parse HEAD)" \
-    --title "Klavko $VERSION ($COMMIT)" \
-    --notes "Built from $FORK_REPO@$(git rev-parse HEAD), signed with a personal certificate. No auto-updater."
-
 mkdir -p "$TAP_DIR/Casks"
 cat > "$TAP_DIR/Casks/klavko.rb" <<CASK
 cask "klavko" do
@@ -85,10 +81,21 @@ cask "klavko" do
 end
 CASK
 
-brew style --fix "$TAP"
-# brew style switches Homebrew developer mode on; switch it back off.
-brew developer off >/dev/null
-git -C "$(brew --repo)" config --unset homebrew.devcmdrun 2>/dev/null || true
+# brew style switches Homebrew developer mode on: always switch it back off, even if style fails.
+developer_off() {
+    brew developer off >/dev/null 2>&1 || true
+    git -C "$(brew --repo)" config --unset homebrew.devcmdrun 2>/dev/null || true
+}
+trap developer_off EXIT
+# Fix what can be fixed, then require a clean run before anything is published or pushed.
+brew style --fix "$TAP" || true
+brew style "$TAP" || fail "brew style still reports offenses in $TAP_DIR/Casks/klavko.rb; nothing was published"
+developer_off
+
+# The cask is valid: publish the zip it points at, then push the cask.
+gh release create "$TAG" "$ZIP" --repo "$FORK_REPO" --target "$(git rev-parse HEAD)" \
+    --title "Klavko $VERSION ($COMMIT)" \
+    --notes "Built from $FORK_REPO@$(git rev-parse HEAD), signed with a personal certificate. No auto-updater."
 
 git -C "$TAP_DIR" add Casks/klavko.rb
 git -C "$TAP_DIR" commit -m "klavko $CASK_VERSION"
