@@ -27,8 +27,6 @@ final class Settings: ObservableObject {
         static let replacements = "replacements"
         static let voiceVocabulary = "voiceVocabulary"
         static let interfaceLanguage = "interfaceLanguage"
-        static let checkForUpdates = "checkForUpdates"
-        static let skippedUpdateVersion = "skippedUpdateVersion"
         static let offerVoiceCorrections = "offerVoiceCorrections"
         static let clipboardEnabled = "clipboardEnabled"
         static let clipboardKeepDays = "clipboardKeepDays"
@@ -96,17 +94,6 @@ final class Settings: ObservableObject {
 
     @Published var listContinuation: Bool {
         didSet { defaults.set(listContinuation, forKey: Key.listContinuation); onChange?() }
-    }
-
-    /// Look for new versions on GitHub now and then.
-    @Published var checkForUpdates: Bool {
-        didSet { defaults.set(checkForUpdates, forKey: Key.checkForUpdates) }
-    }
-
-    /// A version the user chose to skip: not offered again by automatic checks.
-    var skippedUpdateVersion: String? {
-        get { defaults.string(forKey: Key.skippedUpdateVersion) }
-        set { defaults.set(newValue, forKey: Key.skippedUpdateVersion) }
     }
 
     /// The language of Klavko's windows and menus.
@@ -300,8 +287,8 @@ final class Settings: ObservableObject {
             Key.offerVoiceCorrections: true,
             Key.voiceEngine: "local",
             Key.googleSmart: true,
-            Key.checkForUpdates: true,
-            Key.clipboardEnabled: true,
+            // Off by default in this fork: the history is kept as plain JSON on disk.
+            Key.clipboardEnabled: false,
             Key.clipboardKeepDays: 30,
             Key.clipboardIgnoredApps: ["com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
                                        "com.apple.keychainaccess", "com.apple.Passwords", "org.keepassxc.keepassxc"],
@@ -342,7 +329,6 @@ final class Settings: ObservableObject {
         defaults.removeObject(forKey: "aiModel")
         defaults.removeObject(forKey: "aiActions")
         offerVoiceCorrections = defaults.bool(forKey: Key.offerVoiceCorrections)
-        checkForUpdates = defaults.bool(forKey: Key.checkForUpdates)
         clipboardEnabled = defaults.bool(forKey: Key.clipboardEnabled)
         clipboardKeepDays = defaults.integer(forKey: Key.clipboardKeepDays)
         clipboardIgnoredApps = defaults.stringArray(forKey: Key.clipboardIgnoredApps) ?? []

@@ -28,23 +28,26 @@ for bundle in "$BIN_DIR"/*.bundle; do
     [ -e "$bundle" ] && cp -R "$bundle" "$APP/Contents/Resources/"
 done
 
+# Fork policy: never sign ad hoc. An ad-hoc build needs a designated requirement of just
+# `identifier "app.klavko.Klavko"`, and macOS would then grant the Accessibility permission (every
+# keystroke) to ANY program signed ad hoc with that identifier. A real certificate ties the permission
+# to your own signing identity. A free "Apple Development" certificate is enough: Xcode → Settings →
+# Accounts → add your Apple ID → Manage Certificates → + Apple Development.
 IDENTITY="${KLAVKO_SIGN_IDENTITY:-$(security find-identity -v -p codesigning \
     | awk -F'"' '/Developer ID Application|Apple Development/ { print $2; exit }')}"
-IDENTITY="${IDENTITY:--}"
-REQUIREMENTS=()
-if [ "$IDENTITY" = "-" ]; then
-    # Ad hoc signatures change with every build, and macOS ties the Accessibility permission to the
-    # signature's requirement: name the app by its identifier, so an update keeps the permission.
-    REQUIREMENTS=(--requirements '=designated => identifier "app.klavko.Klavko"')
+if [ -z "$IDENTITY" ] || [ "$IDENTITY" = "-" ]; then
+    echo "error: no code signing certificate found (Apple Development or Developer ID Application)." >&2
+    echo "       Ad-hoc signing is disabled in this fork; see the comment above this check." >&2
+    exit 1
 fi
-if ! codesign --force --options runtime --entitlements Resources/Klavko.entitlements ${REQUIREMENTS[@]+"${REQUIREMENTS[@]}"} \
-    --sign "$IDENTITY" "$APP"; then
-    [ "$IDENTITY" = "-" ] && exit 1
-    # The certificate's key is out of reach (a locked keychain over SSH): sign ad hoc instead.
-    echo "Signing with $IDENTITY failed; signing ad hoc"
-    IDENTITY="-"
-    codesign --force --options runtime --entitlements Resources/Klavko.entitlements \
-        --requirements '=designated => identifier "app.klavko.Klavko"' --sign - "$APP"
-fi
+codesign --force --options runtime --timestamp=none --entitlements Resources/Klavko.entitlements \
+    --sign "$IDENTITY" "$APP"
+codesign --verify --strict --verbose=1 "$APP"
+# The designated requirement must name the certificate, not only the bundle identifier.
+REQUIREMENT="$(codesign -d -r- "$APP" 2>&1 | sed -n 's/^designated => //p')"
+case "$REQUIREMENT" in
+    *certificate*) ;;
+    *) echo "error: weak designated requirement: $REQUIREMENT" >&2; exit 1 ;;
+esac
 
 echo "Built $APP (signed with: $IDENTITY)"

@@ -14,8 +14,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let correctionWatcher = VoiceCorrectionWatcher()
     private let learnPrompt = VoiceLearnPrompt()
     private let clipboard = ClipboardManager()
-    private let updater = Updater()
-    private let updatePrompt = UpdatePrompt()
     private lazy var clipboardWindow = ClipboardWindow(manager: clipboard)
     private let translator = Translator()
     private let screenText = ScreenTextCapture()
@@ -86,14 +84,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if settings.playCopySound { playSound(named: settings.copySoundName) }
         }
         clipboard.prune()
-        updater.autoCheck = { [unowned self] in settings.checkForUpdates }
-        updater.skippedVersion = { [unowned self] in settings.skippedUpdateVersion }
-        updater.onAvailable = { [unowned self] release in
-            updatePrompt.show(release, current: updater.currentVersion,
-                              onUpdate: { [unowned self] in updater.install() },
-                              onSkip: { [unowned self] in settings.skippedUpdateVersion = release.version })
-        }
-        updater.start()
         clipboard.start()
         engine.onClipboard = { [unowned self] in
             MainActor.assumeIsolated { clipboardWindow.toggle() }
@@ -218,12 +208,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let index = CommandLine.arguments.firstIndex(of: "--translate-check"), index + 2 < CommandLine.arguments.count {
             translator.check(CommandLine.arguments[index + 1], writeTo: URL(fileURLWithPath: CommandLine.arguments[index + 2]))
         }
-        // Developer check of updating: --update-test <test copy of Klavko.app> <report.txt> installs the latest
-        // release over that copy (never over the running app) and quits.
-        if let index = CommandLine.arguments.firstIndex(of: "--update-test"), index + 2 < CommandLine.arguments.count {
-            updater.installForTest(at: URL(fileURLWithPath: CommandLine.arguments[index + 1]),
-                                   report: URL(fileURLWithPath: CommandLine.arguments[index + 2]))
-        }
         // Developer check of Parakeet's language handling: --parakeet-check <audio> <out.txt>.
         if let index = CommandLine.arguments.firstIndex(of: "--parakeet-check"), index + 2 < CommandLine.arguments.count {
             let file = URL(fileURLWithPath: CommandLine.arguments[index + 1])
@@ -233,10 +217,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 try? result.write(to: out, atomically: true, encoding: .utf8)
                 NSApp.terminate(nil)
             }
-        }
-        // Developer check of the update prompt: --snapshot-update <file.png>.
-        if let index = CommandLine.arguments.firstIndex(of: "--snapshot-update"), index + 1 < CommandLine.arguments.count {
-            UpdatePrompt.snapshot(to: URL(fileURLWithPath: CommandLine.arguments[index + 1]))
         }
         // Developer check of the translation panel: --snapshot-translation <file.png>.
         if let index = CommandLine.arguments.firstIndex(of: "--snapshot-translation"), index + 1 < CommandLine.arguments.count {
@@ -382,11 +362,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        if let release = updater.available {
-            menu.addItem(item(trFormat("⬆︎ Оновити Klavko до %@", "⬆︎ Update Klavko to %@", release.version),
-                              #selector(installUpdate)))
-            menu.addItem(.separator())
-        }
         // Each action with its hotkey as set in Settings, so a changed shortcut shows here too.
         let keyLayout = englishLayout()
         func hotkey(_ action: HotkeyAction) -> String? { settings.shortcuts[action]?.displayName(layout: keyLayout) }
@@ -453,7 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func showSettings() {
         if settingsWindow == nil {
-            let view = SettingsView(settings: settings, recorder: recorder, parakeet: parakeet, clipboard: clipboard, updater: updater,
+            let view = SettingsView(settings: settings, recorder: recorder, parakeet: parakeet, clipboard: clipboard,
                                     keyLayout: englishLayout(),
                                     previewSound: { [weak self] name in self?.playSound(named: name) })
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
@@ -470,7 +445,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Renders every tab into `<name>-<tab>.png` next to `url`, then quits.
     private func snapshotSettings(to url: URL, tabs: [SettingsTab] = SettingsTab.allCases) {
         guard let tab = tabs.first else { return NSApp.terminate(nil) }
-        var view = SettingsView(settings: settings, recorder: recorder, parakeet: parakeet, clipboard: clipboard, updater: updater,
+        var view = SettingsView(settings: settings, recorder: recorder, parakeet: parakeet, clipboard: clipboard,
                                     keyLayout: englishLayout(),
                                 previewSound: { _ in })
         view.initialTab = tab
@@ -494,10 +469,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleVoice() {
         // After the menu closes, so the text lands in the app that was in front.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.dictation.toggle() }
-    }
-
-    @objc private func installUpdate() {
-        updater.install()
     }
 
     @objc private func captureScreenText() {

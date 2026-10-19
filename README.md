@@ -1,5 +1,7 @@
 # Klavko
 
+> **Personal fork.** No auto-updater, no ad-hoc signing, clipboard history off by default. Install with `brew install --cask theorlovsky/tap/klavko`; see [FORK.md](FORK.md).
+
 [🇺🇦 Українська](README.uk.md) · 🇬🇧 **English**
 
 A free typing assistant for Mac — in Ukrainian, English and 11 more languages.
@@ -59,7 +61,7 @@ Requirements: macOS 14 or later (translation needs macOS 15), at least two keybo
 
 ### Interface and updates
 - Settings in tabs: General, Layout, Text, Voice, Clipboard, Hotkeys, About.
-- Klavko tells you about a new version and updates with one “Update” button — nothing to download or install by hand.
+- No automatic updates in this fork: new builds come through Homebrew (`brew upgrade --cask klavko`).
 - Interface languages: Українська, English, español, français, Deutsch, italiano, português, polski, Türkçe, 简体中文, 日本語 and 한국어.
 
 ## Hotkeys

@@ -7,7 +7,6 @@ struct SettingsView: View {
     @ObservedObject var recorder: ShortcutRecorder
     @ObservedObject var parakeet: ParakeetEngine
     @ObservedObject var clipboard: ClipboardManager
-    @ObservedObject var updater: Updater
     /// English layout, used to name letter keys in shortcuts.
     let keyLayout: LayoutMap?
     let previewSound: (String) -> Void
@@ -462,7 +461,7 @@ struct SettingsView: View {
                     }
 
                 case .about:
-                    AboutSection(settings: settings, updater: updater)
+                    AboutSection(settings: settings)
                 }
             }
             .formStyle(.grouped)
